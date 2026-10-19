@@ -31,6 +31,13 @@ jobs:
           dotnet build --configuration Release -p:Version=${{ steps.shell.outputs.version }}
           dotnet build --configuration Release.Emby -p:Version=${{ steps.shell.outputs.version }}
 
+      - name: Verify Emby Target Framework
+        # Emby 4.8/4.9 run on .NET 6; a net8.0 assembly silently fails to load
+        # and the plugin never shows up in the Emby plugin list.
+        run: |
+          strings Jellyfin.Plugin.MetaTube/bin/Release.Emby/net6.0/MetaTube.dll \
+            | grep -q "NETCoreApp,Version=v6.0"
+
       - name: Generate Manifest
         run: |
           python3 -m pip install packaging
