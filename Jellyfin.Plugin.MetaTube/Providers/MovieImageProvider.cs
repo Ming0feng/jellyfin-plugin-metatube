@@ -1,4 +1,5 @@
 using Jellyfin.Plugin.MetaTube.Extensions;
+using Jellyfin.Plugin.MetaTube.Helpers;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Providers;
@@ -36,13 +37,14 @@ public class MovieImageProvider : BaseProvider, IRemoteImageProvider, IHasOrder
             return Enumerable.Empty<RemoteImageInfo>();
 
         var m = await ApiClient.GetMovieInfoAsync(pid.Provider, pid.Id, cancellationToken);
+        var badge = GetBadge(item);
         var images = new List<RemoteImageInfo>
         {
             new()
             {
                 ProviderName = Name,
                 Type = ImageType.Primary,
-                Url = ApiClient.GetPrimaryImageApiUrl(m.Provider, m.Id, pid.Position ?? -1)
+                Url = ApiClient.GetPrimaryImageApiUrl(m.Provider, m.Id, pid.Position ?? -1, badge)
             },
             new()
             {
@@ -64,7 +66,7 @@ public class MovieImageProvider : BaseProvider, IRemoteImageProvider, IHasOrder
             {
                 ProviderName = Name,
                 Type = ImageType.Primary,
-                Url = ApiClient.GetPrimaryImageApiUrl(m.Provider, m.Id, imageUrl, pid.Position ?? -1)
+                Url = ApiClient.GetPrimaryImageApiUrl(m.Provider, m.Id, imageUrl, pid.Position ?? -1, badge: badge)
             });
 
             images.Add(new RemoteImageInfo
@@ -83,6 +85,16 @@ public class MovieImageProvider : BaseProvider, IRemoteImageProvider, IHasOrder
         }
 
         return images;
+    }
+
+    /// <summary>
+    /// 仅当条目确实带中文字幕时才让图片地址带上角标，
+    /// 这样刷新元数据并替换图片后角标不会丢失，也不会给无字幕条目误加角标。
+    /// </summary>
+    private static string GetBadge(BaseItem item)
+    {
+        var badge = BadgeSpec.Build(BadgeSpec.HasChineseSubtitle(item), item.Path);
+        return string.IsNullOrEmpty(badge) ? null : badge;
     }
 
     public bool Supports(BaseItem item)

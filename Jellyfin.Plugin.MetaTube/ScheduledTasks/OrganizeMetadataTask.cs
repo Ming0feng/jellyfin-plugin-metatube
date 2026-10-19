@@ -1,5 +1,5 @@
-using System.Text.RegularExpressions;
 using Jellyfin.Plugin.MetaTube.Extensions;
+using Jellyfin.Plugin.MetaTube.Helpers;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Entities;
@@ -85,26 +85,33 @@ public class OrganizeMetadataTask : IScheduledTask
 
             var genres = item.Genres?.ToList() ?? new List<string>();
 
+            var imageUpdated = false;
             try
             {
-                switch (HasEmbeddedChineseSubtitle(item.FileNameWithoutExtension) ||
-                        HasExternalChineseSubtitle(item.Path))
+                var config = Plugin.Instance.Configuration;
+                var hasChineseSubtitle = ChineseSubtitleDetector.HasChineseSubtitle(item.Path);
+
+                // Add `ChineseSubtitle` genre.
+                if (hasChineseSubtitle && !genres.Contains(ChineseSubtitle))
                 {
-                    // Add `ChineseSubtitle` genre.
-                    case true when !genres.Contains(ChineseSubtitle):
+                    genres.Add(ChineseSubtitle);
+                }
+                // Remove `ChineseSubtitle` genre.
+                else if (!hasChineseSubtitle && genres.Contains(ChineseSubtitle))
+                {
+                    genres.RemoveAll(s => s.Equals(ChineseSubtitle));
+                }
+
+                // Badges follow the current detection result; this also restores the
+                // badges dropped by a metadata/image refresh.
+                if (config.EnableBadges || config.EnableUncensoredBadges)
+                {
+                    var badge = BadgeSpec.Build(hasChineseSubtitle, item.Path);
+                    if (!BadgeSpec.Matches(item.GetImageInfo(ImageType.Primary, 0)?.Path, badge))
                     {
-                        genres.Add(ChineseSubtitle);
-                        if (Plugin.Instance.Configuration.EnableBadges)
-                            await SetPrimaryImage(item, Plugin.Instance.Configuration.BadgeUrl, cancellationToken);
-                        break;
-                    }
-                    // Remove `ChineseSubtitle` genre.
-                    case false when genres.Contains(ChineseSubtitle):
-                    {
-                        genres.RemoveAll(s => s.Equals(ChineseSubtitle));
-                        if (Plugin.Instance.Configuration.EnableBadges)
-                            await SetPrimaryImage(item, string.Empty, cancellationToken);
-                        break;
+                        imageUpdated = await SetPrimaryImage(item, badge ?? string.Empty, cancellationToken);
+                        if (imageUpdated)
+                            _logger.Info("Update badge for video: {0}", item.Name);
                     }
                 }
             }
@@ -120,12 +127,14 @@ public class OrganizeMetadataTask : IScheduledTask
                     ? Plugin.Instance.Configuration.GetGenreSubstitutionTable().Substitute(genres)
                     : genres).Distinct().OrderByString(genre => genre).ToList();
 
-            // Skip updating item if equal.
-            if (!orderedGenres.Any() ||
-                (item.Genres?.SequenceEqual(orderedGenres, StringComparer.OrdinalIgnoreCase)).GetValueOrDefault(false))
+            // Skip updating item if equal, unless the primary image was just repaired.
+            if (!imageUpdated &&
+                (!orderedGenres.Any() ||
+                 (item.Genres?.SequenceEqual(orderedGenres, StringComparer.OrdinalIgnoreCase)).GetValueOrDefault(false)))
                 continue;
 
-            item.Genres = orderedGenres.ToArray();
+            if (orderedGenres.Any())
+                item.Genres = orderedGenres.ToArray();
 
             _logger.Info("Organize metadata for video: {0}", item.Name);
 
@@ -145,45 +154,11 @@ public class OrganizeMetadataTask : IScheduledTask
 
     private const string ChineseSubtitle = "中文字幕";
 
-    private static bool HasTag(string filename, string tag)
-    {
-        var r = new Regex(@"[-_\s]", RegexOptions.Compiled);
-        return r.Split(filename).Contains(tag, StringComparer.OrdinalIgnoreCase);
-    }
-
-    private static bool HasTag(string filename, params string[] tags)
-    {
-        return tags.Any(tag => HasTag(filename, tag));
-    }
-
-    private static bool HasEmbeddedChineseSubtitle(string filename)
-    {
-        if (string.IsNullOrWhiteSpace(filename))
-            return false;
-
-        return filename.Contains(ChineseSubtitle) || HasTag(filename, "C", "UC", "ch");
-    }
-
-    private static bool HasExternalChineseSubtitle(string path)
-    {
-        return HasExternalChineseSubtitle(Path.GetFileNameWithoutExtension(path),
-            Directory.GetParent(path)?.GetFiles().Select(info => info.Name));
-    }
-
-    private static bool HasExternalChineseSubtitle(string basename, IEnumerable<string> files)
-    {
-        var r = new Regex(@"\.(ch[ist]|zho?(-(cn|hk|sg|tw))?)\.(ass|srt|ssa|smi|sub|idx|psb|vtt)$",
-            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
-        return files.Any(name => r.IsMatch(name) &&
-                                 r.Replace(name, string.Empty)
-                                     .Equals(basename, StringComparison.OrdinalIgnoreCase));
-    }
-
-    private static async Task SetPrimaryImage(BaseItem item, string badge, CancellationToken cancellationToken)
+    private static async Task<bool> SetPrimaryImage(BaseItem item, string badge, CancellationToken cancellationToken)
     {
         var pid = item.GetPid(Plugin.ProviderId);
         if (string.IsNullOrWhiteSpace(pid.Id) || string.IsNullOrWhiteSpace(pid.Provider))
-            return;
+            return false;
 
         var m = await ApiClient.GetMovieInfoAsync(pid.Provider, pid.Id, cancellationToken);
         // Set first primary image.
@@ -192,6 +167,7 @@ public class OrganizeMetadataTask : IScheduledTask
             Path = ApiClient.GetPrimaryImageApiUrl(m.Provider, m.Id, pid.Position ?? -1, badge),
             Type = ImageType.Primary
         }, 0);
+        return true;
     }
 
     #endregion

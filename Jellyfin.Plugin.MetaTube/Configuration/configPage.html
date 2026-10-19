@@ -421,6 +421,116 @@
             return false;
         });
     </script>
+    <script type="text/javascript">
+        /**
+         * 简体中文本地化：浏览器语言为 zh-* 时自动生效，缺省保持英文。
+         * 仅替换文本节点，不影响 option/input 的 value，配置读写逻辑不受影响。
+         */
+        (function () {
+            var zhCN = {
+                "MetaTube Plugin for Jellyfin/Emby.": "MetaTube 插件（适用于 Jellyfin / Emby）。",
+                "Learn more": "了解更多",
+                "General": "通用",
+                "Server:": "服务器地址：",
+                "Full url of the MetaTube Server, HTTPS protocol is recommended.": "MetaTube 服务端的完整地址，建议使用 HTTPS 协议。",
+                "Token:": "访问令牌：",
+                "Access token for the MetaTube Server, or blank if no token is set by the backend.": "MetaTube 服务端的访问令牌；若后端未设置令牌则留空。",
+                "Enable collections": "启用合集",
+                "Automatically create collections by series.": "按系列自动创建合集。",
+                "Enable directors": "启用导演信息",
+                "Add directors to corresponding video metadata.": "为对应影片的元数据添加导演信息。",
+                "Enable ratings": "启用评分",
+                "Display community ratings from the original website.": "显示来源网站的社区评分。",
+                "Enable trailers": "启用预告片",
+                "Generate online video trailers in strm format.": "生成 strm 格式的在线预告片。",
+                "Enable real actor names": "启用真实演员名",
+                "Search and replace with real actor names from AVBASE.": "使用 AVBASE 中的真实演员名进行搜索与替换。",
+                "Badge": "角标",
+                "Enable badges": "启用角标",
+                "Add Chinese subtitle badges to primary images.": "在主图上添加中文字幕角标。",
+                "Badge url:": "角标图片地址：",
+                "Custom badge url, PNG format is recommended. (default: zimu.png)": "自定义角标图片地址，建议使用 PNG 格式。（默认：zimu.png）",
+                "Image": "图像",
+                "Primary image ratio:": "主图比例：",
+                "Aspect ratio for primary images, set a negative value to use the default.": "主图的宽高比，设为负值则使用默认值。",
+                "Default image quality:": "默认图片质量：",
+                "Default compression quality for JPEG images, set between 0 and 100. (default: 90)": "JPEG 图片的默认压缩质量，取值范围 0~100。（默认：90）",
+                "Provider": "数据源",
+                "Enable movie provider filter": "启用影片源过滤",
+                "Filter and reorder search results from movie providers.": "过滤并排序来自各影片源的搜索结果。",
+                "Movie provider filter:": "影片源过滤：",
+                "Provider names are case-insensitive, with decreasing precedence from left to right, separated by commas.": "源名称不区分大小写，越靠左优先级越高，多个源用英文逗号分隔。",
+                "Template": "模板",
+                "Enable template": "启用模板",
+                "Predefined template variables can be found": "预置模板变量的说明见",
+                "here": "此处",
+                "Name template:": "名称模板：",
+                "Tagline template:": "标语模板：",
+                "Translation": "翻译",
+                "Translation mode:": "翻译模式：",
+                "Disabled": "禁用",
+                "Title": "标题",
+                "Summary": "简介",
+                "Title and Summary": "标题和简介",
+                "Translation engine:": "翻译引擎：",
+                "Baidu": "百度",
+                "Google": "谷歌",
+                "Google (Free)": "谷歌（免费）",
+                "DeepL": "DeepL",
+                "OpenAI": "OpenAI",
+                "Baidu app id:": "百度 App ID：",
+                "Baidu app key:": "百度 App Key：",
+                "Google api key:": "谷歌 API Key：",
+                "Google api url:": "谷歌 API 地址：",
+                "Custom Google translate api url. (optional)": "自定义谷歌翻译 API 地址。（可选）",
+                "DeepL api key:": "DeepL API Key：",
+                "DeepL api url:": "DeepL API 地址：",
+                "Custom DeepL-compatible api url. (optional)": "兼容 DeepL 的自定义 API 地址。（可选）",
+                "OpenAI api key:": "OpenAI API Key：",
+                "OpenAI api url:": "OpenAI API 地址：",
+                "Custom OpenAI-compatible api url. (optional)": "兼容 OpenAI 的自定义 API 地址。（可选）",
+                "OpenAI model:": "OpenAI 模型：",
+                "Custom OpenAI-compatible api model. (optional)": "兼容 OpenAI 的自定义 API 模型。（可选）",
+                "Substitution": "替换",
+                "Enable title substitution": "启用标题替换",
+                "Title substitution table:": "标题替换表：",
+                "One record per line, separated by equal signs. Leave the target substring blank to delete the source substring.": "每行一条记录，用等号分隔；等号右侧留空表示删除左侧内容。",
+                "Enable actor substitution": "启用演员替换",
+                "Actor substitution table:": "演员替换表：",
+                "One record per line, separated by equal signs. Leave the target actor blank to delete the source actor.": "每行一条记录，用等号分隔；等号右侧留空表示删除该演员。",
+                "Enable genre substitution": "启用类别替换",
+                "Genre substitution table:": "类别替换表：",
+                "One record per line, separated by equal signs. Leave the target genre blank to delete the source genre.": "每行一条记录，用等号分隔；等号右侧留空表示删除该类别。",
+                "Save": "保存"
+            };
+
+            function localize() {
+                if (!/^zh/i.test(navigator.language || navigator.userLanguage || "")) {
+                    return;
+                }
+                document.documentElement.lang = "zh-CN";
+                var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+                var nodes = [], node;
+                while ((node = walker.nextNode())) {
+                    nodes.push(node);
+                }
+                nodes.forEach(function (textNode) {
+                    var parent = textNode.parentNode;
+                    if (!parent || /^(SCRIPT|STYLE)$/.test(parent.nodeName)) {
+                        return;
+                    }
+                    var raw = textNode.nodeValue;
+                    var key = raw.trim();
+                    if (!key || !Object.prototype.hasOwnProperty.call(zhCN, key)) {
+                        return;
+                    }
+                    textNode.nodeValue = raw.replace(key, zhCN[key]);
+                });
+            }
+
+            localize();
+        })();
+    </script>
 </div>
 </body>
 </html>

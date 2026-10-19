@@ -21,7 +21,13 @@
 
     <PropertyGroup>
         <TargetFramework Condition="'$(Configuration)'=='Debug' or '$(Configuration)'=='Release'">net9.0</TargetFramework>
-        <TargetFramework Condition="'$(Configuration)'=='Debug.Emby' or '$(Configuration)'=='Release.Emby'">net8.0</TargetFramework>
+        <!--
+          Emby 4.8.x / 4.9.x still run on .NET 6 (e.g. "Framework: .NET 6.0.36"),
+          so a net8.0 plugin assembly silently fails to load and never shows up
+          in the Emby plugin list. Emby's own assemblies are netstandard2.0,
+          hence net6.0 builds against them fine and also loads on newer Emby.
+        -->
+        <TargetFramework Condition="'$(Configuration)'=='Debug.Emby' or '$(Configuration)'=='Release.Emby'">net6.0</TargetFramework>
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(Configuration)'=='Debug.Emby' or '$(Configuration)'=='Release.Emby'">

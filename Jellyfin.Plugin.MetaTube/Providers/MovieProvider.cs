@@ -357,7 +357,8 @@ public class MovieProvider : BaseProvider, IRemoteMetadataProvider<Movie, MovieI
         try
         {
             Logger.Info("Translate movie info language: {0} => {1}", m.Number, language);
-            await TranslationHelper.TranslateAsync(m, language, cancellationToken);
+            await TranslationHelper.TranslateAsync(m, language, cancellationToken,
+                message => Logger.Info("{0}", message));
         }
         catch (Exception e)
         {
