@@ -1,11 +1,16 @@
 name: .NET
 
 on:
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -14,17 +19,26 @@ jobs:
       - name: Setup .NET Core
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.x'
+          dotnet-version: |
+            6.0.x
+            9.0.x
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
-      - name: Generate Version
+      - name: Resolve version
         id: shell
         run: |
-          echo "version=$(date -u '+%Y.%-m%d.%-H%M.0')" >> $GITHUB_OUTPUT
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            echo "tag=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+            echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+          else
+            v=$(date -u '+%Y.%-m%d.%-H%M.0')
+            echo "tag=v$v" >> $GITHUB_OUTPUT
+            echo "version=$v" >> $GITHUB_OUTPUT
+          fi
 
       - name: Build Plugins
         run: |
@@ -57,12 +71,12 @@ jobs:
 
       - name: Upload Plugins
         uses: softprops/action-gh-release@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
+          tag_name: ${{ steps.shell.outputs.tag }}
+          name: ${{ steps.shell.outputs.tag }}
           body: _Auto Released by Actions_
           draft: false
-          tag_name: v${{ steps.shell.outputs.version }}
           files: |
             Jellyfin.Plugin.MetaTube/bin/Jellyfin.MetaTube@v${{ steps.shell.outputs.version }}.zip
             Jellyfin.Plugin.MetaTube/bin/Emby.MetaTube@v${{ steps.shell.outputs.version }}.zip
+          fail_on_unmatched_files: true
