@@ -1,6 +1,9 @@
 <h1 align="center">Jellyfin Plugin MetaTube</h1>
 <p align="center"><b>English | <a href="README.ja.md">日本語</a></b></p>
 
+> **本仓库是 [metatube-community/jellyfin-plugin-metatube](https://github.com/metatube-community/jellyfin-plugin-metatube) 的个人维护分支。**
+> 在上游基础上补充了角标组合、无码/中文字幕检出以及翻译链路改造，详见下方[本地新增功能](#本地新增功能)。
+
 <p align="center">
 <img alt="Plugin Banner" src="https://metatube-community.github.io/images/banner-dark.png"/>
 <br/>
@@ -60,6 +63,37 @@ Full documentation and examples can be found at [Wiki](https://metatube-communit
 ## Community
 
 Welcome and feel free to ask any questions at [Discussions](https://github.com/metatube-community/jellyfin-plugin-metatube/discussions).
+
+## 本地新增功能
+
+以下功能为个人分支新增，上游原版不包含。
+
+### 角标组合
+
+主图可同时叠加两个角标：左上「中文字幕」、右上「无码破解」。服务端的 badge 参数以逗号分隔，`tr:` 前缀表示右上角，例如 `zimu.png,tr:uncensored.png`。角标图片地址、无码关键字均可配置。
+
+### 中文字幕检出
+
+判断条目是否已有中文字幕，命中任一条件即视为有：
+
+- 类型（Genre）中包含「中文字幕」
+- 文件名带分隔符标记：`-C`、`-UC`、`-ch`、`中文字幕`
+- 同目录存在 `ass/srt/ssa/smi/sub/idx/psb/vtt` 外挂字幕
+
+### 无码 / 破解检出
+
+按文件名分词匹配关键字 `U`、`UC`、`AI`、`uncensored`、`无码`、`破解`，例如 `SONE-263-U`、`ABC-123-UC`、`XYZ-AI`，关键字列表可自定义。
+
+### 翻译链路改造
+
+| 改动 | 说明 |
+| --- | --- |
+| 长文本分段 | 超过 600 字符的文本按句末标点/`<br>` 边界切分后逐段翻译再合并，避免单次请求过长被拒 |
+| 硬超时 | 免费翻译单次请求 20 秒硬超时（含内部重试），不再把刷新拖到分钟级 |
+| 自动降级 | 免费翻译超时、429、5xx 等任意失败都会自动改用 OpenAI 兼容引擎重试一次 |
+| 模型自动探测 | OpenAI 模型留空时，自动请求 `{api-url}/models` 选取首个可用对话模型并记录日志 |
+| 字段级容错 | 标题与简介独立处理，任一字段失败只保留该字段原文，不影响另一个 |
+| 取消语义修复 | 重试逻辑不再吞掉 `OperationCanceledException`，服务关闭时可立即中断 |
 
 ## Licence
 
