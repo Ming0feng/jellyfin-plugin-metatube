@@ -64,6 +64,24 @@ Full documentation and examples can be found at [Wiki](https://metatube-communit
 
 Welcome and feel free to ask any questions at [Discussions](https://github.com/metatube-community/jellyfin-plugin-metatube/discussions).
 
+## 联动项目
+
+本插件是 MetaTube 链路的客户端，与另外两个项目配合使用：
+
+| 项目 | 角色 | 地址 |
+| --- | --- | --- |
+| metatube-sdk-go | 刮削服务端，提供搜索、详情、图片与翻译 REST API | https://github.com/Ming0feng/metatube-sdk-go |
+| jellyfin-plugin-metatube | 本插件：Jellyfin / Emby 元数据与图片提供程序 | https://github.com/Ming0feng/jellyfin-plugin-metatube |
+| emby-subtitlecat | Emby 字幕插件，依赖本插件的刮削结果定位番号并补「中文字幕」角标 | https://github.com/Ming0feng/emby-subtitlecat |
+
+联动方式：
+
+1. 本插件在 `服务器地址` 指向的 MetaTube Server 上调用 `/v1/movies/search` 与 `/v1/movies/{provider}/{id}` 完成刮削，并把结果写入条目的 `ProviderIds["MetaTube"]`，格式为 `<Provider>:<Id>[:<Position>[:<Update>]]`。
+2. 主图、缩略图、背景图均通过服务端 `/v1/images/primary|thumb|backdrop/{provider}/{id}` 按需生成，`badge` 参数决定角标（如 `zimu.png,tr:uncensored.png`）。
+3. emby-subtitlecat 只处理带 `MetaTube` ProviderId 的条目，从该值解析 `<Provider>:<Id>` 得到番号去 subtitlecat.com 找字幕；下载完成后读取本插件的 `MetaTube.json` 配置（`Server`、`EnableBadges`、`BadgeUrl`、`EnableUncensoredBadges`、`PrimaryImageRatio`），直接请求 `/v1/images/primary/...` 重设主图以补上「中文字幕」角标。
+
+因此三个项目需指向同一个 MetaTube Server 实例，并保持 `服务器地址` 一致。
+
 ## 本地新增功能
 
 以下功能为个人分支新增，上游原版不包含。
