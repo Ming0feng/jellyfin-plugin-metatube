@@ -88,7 +88,6 @@ public class OrganizeMetadataTask : IScheduledTask
             var imageUpdated = false;
             try
             {
-                var config = Plugin.Instance.Configuration;
                 var hasChineseSubtitle = ChineseSubtitleDetector.HasChineseSubtitle(item.Path);
 
                 // Add `ChineseSubtitle` genre.
@@ -102,18 +101,17 @@ public class OrganizeMetadataTask : IScheduledTask
                     genres.RemoveAll(s => s.Equals(ChineseSubtitle));
                 }
 
-                // Badges follow the current detection result; this also restores the
-                // badges dropped by a metadata/image refresh.
-                if (config.EnableBadges || config.EnableUncensoredBadges)
-                {
-                    var badge = BadgeSpec.Build(hasChineseSubtitle, item.Path);
-                    if (!BadgeSpec.Matches(item.GetImageInfo(ImageType.Primary, 0)?.Path, badge))
-                    {
-                        imageUpdated = await SetPrimaryImage(item, badge ?? string.Empty, cancellationToken);
-                        if (imageUpdated)
-                            _logger.Info("Update badge for video: {0}", item.Name);
-                    }
-                }
+                // 主图落到媒体目录（带不带角标都做）。
+                //
+                // 以前这里只比对 URL 上的 badge 参数、不一致就重设远程地址，
+                // 结果是：Emby 必须重新下载，而下载失败（断网/代理挂掉）时
+                // 旧图又因为“地址对不上”被弃用，海报直接变空白。
+                // 现在由 SetPrimaryImage 负责“下载 → 写 poster.jpg → 指向本地”，
+                // 拿不到新图就保留旧图，不再出现整张丢失。
+                var badge = BadgeSpec.Build(hasChineseSubtitle, item.Path) ?? string.Empty;
+                imageUpdated = await SetPrimaryImage(item, badge, cancellationToken);
+                if (imageUpdated)
+                    _logger.Info("Update primary image for video: {0}", item.Name);
             }
             catch (Exception e)
             {
@@ -154,19 +152,63 @@ public class OrganizeMetadataTask : IScheduledTask
 
     private const string ChineseSubtitle = "中文字幕";
 
-    private static async Task<bool> SetPrimaryImage(BaseItem item, string badge, CancellationToken cancellationToken)
+    /// <summary>
+    /// 确保媒体目录里有一张可用的 poster.jpg，并让条目指向它。
+    ///
+    /// 三种情况：
+    /// 1. 本地已有、角标指纹一致 → 什么都不做（断网时保持稳定）；
+    /// 2. 能下载到新图 → 覆盖 poster.jpg，条目指向本地文件；
+    /// 3. 下载失败 → 只要本地还有旧图就指回它，宁可角标是旧的，也不要空白。
+    /// </summary>
+    private async Task<bool> SetPrimaryImage(BaseItem item, string badge, CancellationToken cancellationToken)
     {
         var pid = item.GetPid(Plugin.ProviderId);
         if (string.IsNullOrWhiteSpace(pid.Id) || string.IsNullOrWhiteSpace(pid.Provider))
             return false;
 
-        var m = await ApiClient.GetMovieInfoAsync(pid.Provider, pid.Id, cancellationToken);
-        // Set first primary image.
-        item.SetImage(new ItemImageInfo
+        var posterPath = PrimaryImageStore.GetPosterPath(item);
+        if (posterPath == null)
+            return false;
+
+        if (PrimaryImageStore.IsFresh(item, posterPath, badge))
+            return false;
+
+        byte[] data = null;
+        try
         {
-            Path = ApiClient.GetPrimaryImageApiUrl(m.Provider, m.Id, pid.Position ?? -1, badge),
-            Type = ImageType.Primary
-        }, 0);
+            var m = await ApiClient.GetMovieInfoAsync(pid.Provider, pid.Id, cancellationToken);
+            var url = ApiClient.GetPrimaryImageApiUrl(
+                m.Provider, m.Id, pid.Position ?? -1,
+                string.IsNullOrEmpty(badge) ? null : badge);
+            var (downloaded, error) = await PrimaryImageStore.DownloadAsync(url, cancellationToken);
+            data = downloaded;
+            if (data == null)
+            {
+                _logger.Info("Primary image download failed for {0}: {1} ({2})",
+                    item.Name, error, url);
+            }
+        }
+        catch (Exception e)
+        {
+            // 元数据都取不到（断网）—— 下面统一兜底到本地旧图
+            _logger.Info("Get movie info failed for {0}: {1}", item.Name, e.Message);
+        }
+
+        if (data == null)
+        {
+            if (File.Exists(posterPath))
+            {
+                PrimaryImageStore.Attach(item, posterPath);
+                return true;
+            }
+
+            return false;
+        }
+
+        if (!PrimaryImageStore.Save(posterPath, data, badge))
+            return false;
+
+        PrimaryImageStore.Attach(item, posterPath);
         return true;
     }
 
