@@ -19,6 +19,7 @@ public static class ApiClient
     private const string ThumbImageApi = "/v1/images/thumb";
     private const string BackdropImageApi = "/v1/images/backdrop";
     private const string TranslateApi = "/v1/translate";
+    private const string ImageCacheApi = "/v1/images/cache";
 
     private static string ComposeUrl(string path, NameValueCollection nv)
     {
@@ -208,12 +209,22 @@ public static class ApiClient
         return await GetDataAsync<TranslationInfo>(apiUrl, false, cancellationToken);
     }
 
-    private static async Task<T> GetDataAsync<T>(string url, bool requireAuth,
-        CancellationToken cancellationToken)
+    /// <summary>
+    /// 清空服务端缓存的图片原图。
+    /// 供元数据整理任务在结束后调用（图已落到媒体目录，服务端那份不再需要）。
+    /// </summary>
+    public static async Task ClearImageCacheAsync(CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
+        var apiUrl = ComposeUrl(ImageCacheApi, new NameValueCollection());
+        using var request = CreateRequest(HttpMethod.Delete, apiUrl, true);
+        using var response = await HttpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+            throw new Exception($"API request error: {(int)response.StatusCode}");
+    }
 
-        var request = new HttpRequestMessage(HttpMethod.Get, url);
+    private static HttpRequestMessage CreateRequest(HttpMethod method, string url, bool requireAuth)
+    {
+        var request = new HttpRequestMessage(method, url);
 
         // Add General Headers.
         request.Headers.Add("Accept", "application/json");
@@ -224,6 +235,15 @@ public static class ApiClient
             request.Headers.Authorization =
                 new AuthenticationHeaderValue("Bearer", Plugin.Instance.Configuration.Token);
 
+        return request;
+    }
+
+    private static async Task<T> GetDataAsync<T>(string url, bool requireAuth,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var request = CreateRequest(HttpMethod.Get, url, requireAuth);
         var response = await HttpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
 
         // Nullable forgiving reason:

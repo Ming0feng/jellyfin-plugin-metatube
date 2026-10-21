@@ -145,6 +145,18 @@ public class OrganizeMetadataTask : IScheduledTask
 #endif
         }
 
+        // 整理结束后清一次服务端原图缓存：海报已经落到媒体目录，
+        // 服务端那份只是占空间。服务端没升级 / 不可达时只记日志，不影响任务结果。
+        try
+        {
+            await ApiClient.ClearImageCacheAsync(cancellationToken).ConfigureAwait(false);
+            _logger.Info("Cleared image cache on {0} server", Plugin.ProviderName);
+        }
+        catch (Exception e)
+        {
+            _logger.Warn("Clear image cache failed: {0}", e.Message);
+        }
+
         progress?.Report(100);
     }
 
@@ -153,19 +165,15 @@ public class OrganizeMetadataTask : IScheduledTask
     private const string ChineseSubtitle = "中文字幕";
 
     /// <summary>
-    /// 确保媒体目录里有一张可用的 poster.jpg，并让条目指向它。
+    /// 确保媒体目录里有一张可用的海报，并让条目指向它。
     ///
     /// 三种情况：
     /// 1. 本地已有、角标指纹一致 → 什么都不做（断网时保持稳定）；
-    /// 2. 能下载到新图 → 覆盖 poster.jpg，条目指向本地文件；
+    /// 2. 能下载到新图（或本地图只是没被引用）→ 指向本地文件；
     /// 3. 下载失败 → 只要本地还有旧图就指回它，宁可角标是旧的，也不要空白。
     /// </summary>
     private async Task<bool> SetPrimaryImage(BaseItem item, string badge, CancellationToken cancellationToken)
     {
-        var pid = item.GetPid(Plugin.ProviderId);
-        if (string.IsNullOrWhiteSpace(pid.Id) || string.IsNullOrWhiteSpace(pid.Provider))
-            return false;
-
         var posterPath = PrimaryImageStore.GetPosterPath(item);
         if (posterPath == null)
             return false;
@@ -173,43 +181,23 @@ public class OrganizeMetadataTask : IScheduledTask
         if (PrimaryImageStore.IsFresh(item, posterPath, badge))
             return false;
 
-        byte[] data = null;
-        try
+        var (changed, error, url) = await PrimaryImageSync.EnsureAsync(item, badge, cancellationToken);
+        if (changed)
+            return true;
+
+        if (!string.IsNullOrEmpty(error))
         {
-            var m = await ApiClient.GetMovieInfoAsync(pid.Provider, pid.Id, cancellationToken);
-            var url = ApiClient.GetPrimaryImageApiUrl(
-                m.Provider, m.Id, pid.Position ?? -1,
-                string.IsNullOrEmpty(badge) ? null : badge);
-            var (downloaded, error) = await PrimaryImageStore.DownloadAsync(url, cancellationToken);
-            data = downloaded;
-            if (data == null)
-            {
-                _logger.Info("Primary image download failed for {0}: {1} ({2})",
-                    item.Name, error, url);
-            }
-        }
-        catch (Exception e)
-        {
-            // 元数据都取不到（断网）—— 下面统一兜底到本地旧图
-            _logger.Info("Get movie info failed for {0}: {1}", item.Name, e.Message);
+            _logger.Info("Primary image download failed for {0}: {1} ({2})", item.Name, error, url);
         }
 
-        if (data == null)
+        // 兜底：本地还有旧图就指回去，宁可角标是旧的，也不要空白
+        if (File.Exists(posterPath))
         {
-            if (File.Exists(posterPath))
-            {
-                PrimaryImageStore.Attach(item, posterPath);
-                return true;
-            }
-
-            return false;
+            PrimaryImageStore.Attach(item, posterPath);
+            return true;
         }
 
-        if (!PrimaryImageStore.Save(posterPath, data, badge))
-            return false;
-
-        PrimaryImageStore.Attach(item, posterPath);
-        return true;
+        return false;
     }
 
     #endregion

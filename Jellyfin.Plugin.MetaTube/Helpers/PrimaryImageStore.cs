@@ -130,6 +130,18 @@ public static class PrimaryImageStore
     /// </summary>
     public static bool IsFresh(BaseItem item, string posterPath, string badge)
     {
+        if (!MatchesStamp(posterPath, badge))
+        {
+            return false;
+        }
+
+        var current = item.GetImageInfo(ImageType.Primary, 0);
+        return current != null && IsSameFile(current.Path, posterPath);
+    }
+
+    /// <summary>本地文件存在，且角标指纹与预期一致（即这张图不需要重新生成）。</summary>
+    public static bool MatchesStamp(string posterPath, string badge)
+    {
         if (!File.Exists(posterPath))
         {
             return false;
@@ -137,13 +149,7 @@ public static class PrimaryImageStore
 
         var stampPath = posterPath + StampSuffix;
         var stamp = File.Exists(stampPath) ? File.ReadAllText(stampPath).Trim() : string.Empty;
-        if (!string.Equals(stamp, (badge ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        var current = item.GetImageInfo(ImageType.Primary, 0);
-        return current != null && IsSameFile(current.Path, posterPath);
+        return string.Equals(stamp, (badge ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>图片路径是否为远程地址（http/https）。</summary>
