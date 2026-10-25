@@ -91,6 +91,38 @@
                         <input id="txtBadgeUrl" is="emby-input" name="txtBadgeUrl" type="text"/>
                         <div class="fieldDescription">Custom badge url, PNG format is recommended. (default: zimu.png)</div>
                     </div>
+
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="txtChineseSubtitleKeywords">Chinese subtitle keywords:</label>
+                        <input id="txtChineseSubtitleKeywords" is="emby-input" name="txtChineseSubtitleKeywords" type="text"/>
+                        <div class="fieldDescription">Files ending with these keywords are treated as having Chinese subtitles, comma separated. (default: C,UC,ch,中文字幕)</div>
+                    </div>
+
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="txtExternalChineseSubtitleLanguages">External Chinese subtitle languages:</label>
+                        <input id="txtExternalChineseSubtitleLanguages" is="emby-input" name="txtExternalChineseSubtitleLanguages" type="text"/>
+                        <div class="fieldDescription">Language codes of sidecar subtitle files, comma separated. (default: chs,cht,chi,zh,zh-cn,zh-tw,zho)</div>
+                    </div>
+
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="chkEnableUncensoredBadges" is="emby-checkbox" name="chkEnableUncensoredBadges" type="checkbox"/>
+                            <span>Enable uncensored badges</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">Add an uncensored badge to the top right corner of primary images, requires uncensored.png on the backend.</div>
+                    </div>
+
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="txtUncensoredKeywords">Uncensored keywords:</label>
+                        <input id="txtUncensoredKeywords" is="emby-input" name="txtUncensoredKeywords" type="text"/>
+                        <div class="fieldDescription">Files ending with these keywords are treated as uncensored, comma separated. (default: U,UC,AI,uncensored,无码,破解)</div>
+                    </div>
+
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="txtUncensoredBadgeUrl">Uncensored badge url:</label>
+                        <input id="txtUncensoredBadgeUrl" is="emby-input" name="txtUncensoredBadgeUrl" type="text"/>
+                        <div class="fieldDescription">Uncensored badge image name, served by the backend. (default: uncensored.png)</div>
+                    </div>
                 </div>
 
                 <div class="verticalSection">
@@ -350,6 +382,11 @@
                 page.querySelector('#chkEnableRealActorNames').checked = config.EnableRealActorNames;
                 page.querySelector('#chkEnableBadges').checked = config.EnableBadges;
                 $('#txtBadgeUrl', page).val(config.BadgeUrl).change();
+                $('#txtChineseSubtitleKeywords', page).val(config.ChineseSubtitleKeywords).change();
+                $('#txtExternalChineseSubtitleLanguages', page).val(config.ExternalChineseSubtitleLanguages).change();
+                page.querySelector('#chkEnableUncensoredBadges').checked = config.EnableUncensoredBadges;
+                $('#txtUncensoredKeywords', page).val(config.UncensoredKeywords).change();
+                $('#txtUncensoredBadgeUrl', page).val(config.UncensoredBadgeUrl).change();
                 $('#txtPrimaryImageRatio', page).val(config.PrimaryImageRatio).change();
                 $('#txtDefaultImageQuality', page).val(config.DefaultImageQuality).change();
                 page.querySelector('#chkEnableMovieProviderFilter').checked = config.EnableMovieProviderFilter;
@@ -391,6 +428,11 @@
                 config.EnableRealActorNames = $('#chkEnableRealActorNames', form).prop('checked');
                 config.EnableBadges = $('#chkEnableBadges', form).prop('checked');
                 config.BadgeUrl = $('#txtBadgeUrl', form).val();
+                config.ChineseSubtitleKeywords = $('#txtChineseSubtitleKeywords', form).val();
+                config.ExternalChineseSubtitleLanguages = $('#txtExternalChineseSubtitleLanguages', form).val();
+                config.EnableUncensoredBadges = $('#chkEnableUncensoredBadges', form).prop('checked');
+                config.UncensoredKeywords = $('#txtUncensoredKeywords', form).val();
+                config.UncensoredBadgeUrl = $('#txtUncensoredBadgeUrl', form).val();
                 config.PrimaryImageRatio = $('#txtPrimaryImageRatio', form).val();
                 config.DefaultImageQuality = $('#txtDefaultImageQuality', form).val();
                 config.EnableMovieProviderFilter = $('#chkEnableMovieProviderFilter', form).prop('checked');
@@ -450,6 +492,16 @@
                 "Add Chinese subtitle badges to primary images.": "在主图上添加中文字幕角标。",
                 "Badge url:": "角标图片地址：",
                 "Custom badge url, PNG format is recommended. (default: zimu.png)": "自定义角标图片地址，建议使用 PNG 格式。（默认：zimu.png）",
+                "Chinese subtitle keywords:": "中文字幕关键字：",
+                "Files ending with these keywords are treated as having Chinese subtitles, comma separated. (default: C,UC,ch,中文字幕)": "文件名末尾出现这些关键字时视为已内嵌中文字幕并添加角标，英文逗号分隔。（默认：C,UC,ch,中文字幕）",
+                "External Chinese subtitle languages:": "外挂中文字幕语言码：",
+                "Language codes of sidecar subtitle files, comma separated. (default: chs,cht,chi,zh,zh-cn,zh-tw,zho)": "同目录外挂字幕文件的语言码，英文逗号分隔。（默认：chs,cht,chi,zh,zh-cn,zh-tw,zho）",
+                "Enable uncensored badges": "启用无码破解角标",
+                "Add an uncensored badge to the top right corner of primary images, requires uncensored.png on the backend.": "在主图右上角添加“无码破解”角标（需要服务端内置 uncensored.png 角标）。",
+                "Uncensored keywords:": "无码破解关键字：",
+                "Files ending with these keywords are treated as uncensored, comma separated. (default: U,UC,AI,uncensored,无码,破解)": "文件名末尾出现这些关键字时视为无码/破解并添加角标，英文逗号分隔。（默认：U,UC,AI,uncensored,无码,破解）",
+                "Uncensored badge url:": "无码破解角标图片：",
+                "Uncensored badge image name, served by the backend. (default: uncensored.png)": "无码破解角标图片名称，需服务端内置。（默认：uncensored.png）",
                 "Image": "图像",
                 "Primary image ratio:": "主图比例：",
                 "Aspect ratio for primary images, set a negative value to use the default.": "主图的宽高比，设为负值则使用默认值。",
@@ -505,9 +557,6 @@
             };
 
             function localize() {
-                if (!/^zh/i.test(navigator.language || navigator.userLanguage || "")) {
-                    return;
-                }
                 document.documentElement.lang = "zh-CN";
                 var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
                 var nodes = [], node;
