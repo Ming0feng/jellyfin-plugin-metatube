@@ -53,6 +53,8 @@ jobs:
             | grep -q "NETCoreApp,Version=v6.0"
 
       - name: Generate Manifest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           python3 -m pip install packaging
           python3 scripts/manifest.py Jellyfin.Plugin.MetaTube/bin/Jellyfin.MetaTube@v${{ steps.shell.outputs.version }}.zip
