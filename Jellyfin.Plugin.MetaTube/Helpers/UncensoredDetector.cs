@@ -7,7 +7,7 @@ namespace Jellyfin.Plugin.MetaTube.Helpers;
 /// </summary>
 public static class UncensoredDetector
 {
-    private const string DefaultKeywords = "U,UC,AI,uncensored,无码,破解";
+    private const string DefaultKeywords = "U,UC,AI,uncensored,无码,破解,LTX";
 
     private static readonly Regex Separator = new(@"[-_\s.@\[\]()（）]+", RegexOptions.Compiled);
 

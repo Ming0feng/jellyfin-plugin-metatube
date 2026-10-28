@@ -101,9 +101,9 @@ public class PluginConfiguration : BasePluginConfiguration
 
 #if __EMBY__
     [DisplayName("无码破解关键字")]
-    [Description("文件名末尾出现这些关键字时视为无码/破解并添加角标，英文逗号分隔。默认：U,UC,AI,uncensored,无码,破解")]
+    [Description("文件名末尾出现这些关键字时视为无码/破解并添加角标，英文逗号分隔。默认：U,UC,AI,uncensored,无码,破解,LTX")]
 #endif
-    public string UncensoredKeywords { get; set; } = "U,UC,AI,uncensored,无码,破解";
+    public string UncensoredKeywords { get; set; } = "U,UC,AI,uncensored,无码,破解,LTX";
 
 #if __EMBY__
     [DisplayName("无码破解角标图片")]

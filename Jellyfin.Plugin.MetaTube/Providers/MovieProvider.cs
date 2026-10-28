@@ -205,9 +205,11 @@ public class MovieProvider : BaseProvider, IRemoteMetadataProvider<Movie, MovieI
         var searchResults = new List<MovieSearchResult>();
         if (string.IsNullOrWhiteSpace(pid.Id) || string.IsNullOrWhiteSpace(pid.Provider))
         {
-            // Search movie by name.
-            Logger.Info("Search for movie: {0}", info.Name);
-            searchResults.AddRange(await ApiClient.SearchMovieAsync(info.Name, pid.Provider, cancellationToken));
+            // Search movie by name, with uncensored/subtitle suffixes removed
+            // (e.g. STARS-979-LTX -> STARS-979), otherwise no provider matches.
+            var keyword = SearchKeyword.Normalize(info.Name);
+            Logger.Info("Search for movie: {0}", keyword);
+            searchResults.AddRange(await ApiClient.SearchMovieAsync(keyword, pid.Provider, cancellationToken));
         }
         else
         {
