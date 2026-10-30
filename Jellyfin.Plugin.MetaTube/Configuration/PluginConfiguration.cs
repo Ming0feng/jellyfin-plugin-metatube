@@ -135,7 +135,12 @@ public class PluginConfiguration : BasePluginConfiguration
 #if __EMBY__
     [DisplayName("影片源过滤")]
     [Description(
-        "源名称不区分大小写，越靠左优先级越高，多个源用英文逗号分隔。")]
+        "源名称不区分大小写，越靠左优先级越高，多个源用英文逗号分隔。\n" +
+        "可用源：JavBus, FANZA, JAV321, AVE, MGS, AVBASE, GFriends, 10musume, 1Pondo, AiRav, " +
+        "AV-LEAGUE, AVSOX, C0930, Caribbeancom, CaribbeancomPR, DAHLIA, DUGA, FALENO, FC2, fc2hub, " +
+        "FC2PPVDB, FREEJAVBT, Gcolle, Getchu, H0930, H4610, HEYZO, HeyDouga, IQQTV, JAVFREE, JavDB, " +
+        "KIN8, MadouQu, MINNANO, MURAMURA, MYWIFE, OFFICIAL, PACOPACOMAMA, Pcolle, SOD, ThePornDBMovie, " +
+        "ThePornDBScene, TOKYO-HOT, Wikipedia。\n默认：JavBus,FANZA,JAV321,AVE,MGS,AVBASE,GFriends")]
 #endif
     public string RawMovieProviderFilter
     {
@@ -149,7 +154,67 @@ public class PluginConfiguration : BasePluginConfiguration
         return _movieProviderFilter;
     }
 
-    private List<string> _movieProviderFilter;
+#if __EMBY__
+    [DisplayName("启用字段级聚合")]
+    [Description("跨源按字段取优：标题/简介/封面等可分别来自不同源。")]
+#endif
+    public bool EnableFieldAggregation { get; set; } = false;
+
+#if __EMBY__
+    [DisplayName("字段优先级")]
+    [Description(
+        "按字段指定取优源，格式：字段名:源1,源2;字段名:源1。字段名可用 Title、Summary、CoverURL、Director、Actors、Genres、Series、Maker、Label、Score、Runtime、ReleaseDate、PreviewImages 等。")]
+#endif
+    public string RawFieldPriority { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 解析字段优先级配置，返回「字段名 → 按优先级排序的源列表」。
+    /// </summary>
+    public Dictionary<string, List<string>> GetFieldPriority()
+    {
+        return ParseFieldPriority(RawFieldPriority);
+    }
+
+    private static Dictionary<string, List<string>> ParseFieldPriority(string raw)
+    {
+        var result = new Dictionary<string, List<string>>();
+        if (string.IsNullOrWhiteSpace(raw))
+            return result;
+
+        foreach (var entry in raw.Split(';', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var idx = entry.IndexOf(':');
+            if (idx <= 0)
+                continue;
+
+            var field = entry[..idx].Trim();
+            var providers = entry[(idx + 1)..]
+                .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim())
+                .Where(s => s.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (field.Length == 0 || providers.Count == 0)
+                continue;
+
+            result[field] = providers;
+        }
+
+        return result;
+    }
+
+#if __EMBY__
+    [DisplayName("JavDB Cookie")]
+    [Description("JavDB 的反爬 Cookie，登录 javdb.com 后从浏览器复制，留空则不带。")]
+#endif
+    public string JavDbCookie { get; set; } = string.Empty;
+
+    // 越靠左优先级越高。FANZA 对新番收录最全，不能漏掉。
+    private List<string> _movieProviderFilter = new()
+    {
+        "JavBus", "FANZA", "JAV321", "AVE", "MGS", "AVBASE", "GFriends"
+    };
 
 #if __EMBY__
     [DisplayName("启用模板")]

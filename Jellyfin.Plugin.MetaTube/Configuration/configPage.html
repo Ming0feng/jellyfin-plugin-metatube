@@ -155,7 +155,27 @@
                     <div class="inputContainer">
                         <label class="inputLabel inputLabelUnfocused" for="txtRawMovieProviderFilter">Movie provider filter:</label>
                         <input id="txtRawMovieProviderFilter" is="emby-input" name="txtRawMovieProviderFilter" type="text"/>
-                        <div class="fieldDescription">Provider names are case-insensitive, with decreasing precedence from left to right, separated by commas.</div>
+                        <div class="fieldDescription">Provider names are case-insensitive, with decreasing precedence from left to right, separated by commas. Available: JavBus, FANZA, JAV321, AVE, MGS, AVBASE, GFriends, 10musume, 1Pondo, AiRav, AV-LEAGUE, AVSOX, C0930, Caribbeancom, CaribbeancomPR, DAHLIA, DUGA, FALENO, FC2, fc2hub, FC2PPVDB, FREEJAVBT, Gcolle, Getchu, H0930, H4610, HEYZO, HeyDouga, IQQTV, JAVFREE, JavDB, KIN8, MadouQu, MINNANO, MURAMURA, MYWIFE, OFFICIAL, PACOPACOMAMA, Pcolle, SOD, ThePornDBMovie, ThePornDBScene, TOKYO-HOT, Wikipedia. (default: JavBus,FANZA,JAV321,AVE,MGS,AVBASE,GFriends)</div>
+                    </div>
+
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="chkEnableFieldAggregation" is="emby-checkbox" name="chkEnableFieldAggregation" type="checkbox"/>
+                            <span>Enable field aggregation</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">Merge fields across providers: title, plot and cover can each come from a different source.</div>
+                    </div>
+
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="txtRawFieldPriority">Field priority:</label>
+                        <input id="txtRawFieldPriority" is="emby-input" name="txtRawFieldPriority" type="text"/>
+                        <div class="fieldDescription">Per-field provider order, e.g. "Title:JavBus,FANZA;Summary:FANZA,JavBus". Fields: Title, Summary, CoverURL, Director, Actors, Genres, Series, Maker, Label, Score, Runtime, ReleaseDate, PreviewImages.</div>
+                    </div>
+
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="txtJavDbCookie">JavDB cookie:</label>
+                        <input id="txtJavDbCookie" is="emby-input" name="txtJavDbCookie" type="text"/>
+                        <div class="fieldDescription">JavDB anti-bot cookie, copy from your browser after logging into javdb.com. Leave blank to disable.</div>
                     </div>
                 </div>
 
@@ -391,6 +411,9 @@
                 $('#txtDefaultImageQuality', page).val(config.DefaultImageQuality).change();
                 page.querySelector('#chkEnableMovieProviderFilter').checked = config.EnableMovieProviderFilter;
                 $('#txtRawMovieProviderFilter', page).val(config.RawMovieProviderFilter).change();
+                page.querySelector('#chkEnableFieldAggregation').checked = config.EnableFieldAggregation;
+                $('#txtRawFieldPriority', page).val(config.RawFieldPriority).change();
+                $('#txtJavDbCookie', page).val(config.JavDbCookie).change();
                 page.querySelector('#chkEnableTemplate').checked = config.EnableTemplate;
                 $('#txtNameTemplate', page).val(config.NameTemplate).change();
                 $('#txtTaglineTemplate', page).val(config.TaglineTemplate).change();
@@ -437,6 +460,9 @@
                 config.DefaultImageQuality = $('#txtDefaultImageQuality', form).val();
                 config.EnableMovieProviderFilter = $('#chkEnableMovieProviderFilter', form).prop('checked');
                 config.RawMovieProviderFilter = $('#txtRawMovieProviderFilter', form).val();
+                config.EnableFieldAggregation = $('#chkEnableFieldAggregation', form).prop('checked');
+                config.RawFieldPriority = $('#txtRawFieldPriority', form).val();
+                config.JavDbCookie = $('#txtJavDbCookie', form).val();
                 config.EnableTemplate = $('#chkEnableTemplate', form).prop('checked');
                 config.NameTemplate = $('#txtNameTemplate', form).val();
                 config.TaglineTemplate = $('#txtTaglineTemplate', form).val();
@@ -447,7 +473,7 @@
                 config.GoogleApiKey = $('#txtGoogleApiKey', form).val();
                 config.GoogleApiUrl = $('#txtGoogleApiUrl', form).val();
                 config.DeepLApiKey = $('#txtDeepLApiKey', form).val();
-                config.DeepLXAltUrl = $('#txtDeepLApiUrl', form).val();
+                config.DeepLApiUrl = $('#txtDeepLApiUrl', form).val();
                 config.OpenAiApiKey = $('#txtOpenAiApiKey', form).val();
                 config.OpenAiApiUrl = $('#txtOpenAiApiUrl', form).val();
                 config.OpenAiModel = $('#txtOpenAiModel', form).val();
@@ -469,6 +495,11 @@
          * 仅替换文本节点，不影响 option/input 的 value，配置读写逻辑不受影响。
          */
         (function () {
+            var lang = (navigator.language || navigator.userLanguage || "").toLowerCase();
+            if (lang.indexOf("zh") !== 0) {
+                return;
+            }
+
             var zhCN = {
                 "MetaTube Plugin for Jellyfin/Emby.": "MetaTube 插件（适用于 Jellyfin / Emby）。",
                 "Learn more": "了解更多",
@@ -511,7 +542,13 @@
                 "Enable movie provider filter": "启用影片源过滤",
                 "Filter and reorder search results from movie providers.": "过滤并排序来自各影片源的搜索结果。",
                 "Movie provider filter:": "影片源过滤：",
-                "Provider names are case-insensitive, with decreasing precedence from left to right, separated by commas.": "源名称不区分大小写，越靠左优先级越高，多个源用英文逗号分隔。",
+                "Provider names are case-insensitive, with decreasing precedence from left to right, separated by commas. Available: JavBus, FANZA, JAV321, AVE, MGS, AVBASE, GFriends, 10musume, 1Pondo, AiRav, AV-LEAGUE, AVSOX, C0930, Caribbeancom, CaribbeancomPR, DAHLIA, DUGA, FALENO, FC2, fc2hub, FC2PPVDB, FREEJAVBT, Gcolle, Getchu, H0930, H4610, HEYZO, HeyDouga, IQQTV, JAVFREE, JavDB, KIN8, MadouQu, MINNANO, MURAMURA, MYWIFE, OFFICIAL, PACOPACOMAMA, Pcolle, SOD, ThePornDBMovie, ThePornDBScene, TOKYO-HOT, Wikipedia. (default: JavBus,FANZA,JAV321,AVE,MGS,AVBASE,GFriends)": "源名称不区分大小写，越靠左优先级越高，多个源用英文逗号分隔。可用源：JavBus、FANZA、JAV321、AVE、MGS、AVBASE、GFriends、10musume、1Pondo、AiRav、AV-LEAGUE、AVSOX、C0930、Caribbeancom、CaribbeancomPR、DAHLIA、DUGA、FALENO、FC2、fc2hub、FC2PPVDB、FREEJAVBT、Gcolle、Getchu、H0930、H4610、HEYZO、HeyDouga、IQQTV、JAVFREE、JavDB、KIN8、MadouQu、MINNANO、MURAMURA、MYWIFE、OFFICIAL、PACOPACOMAMA、Pcolle、SOD、ThePornDBMovie、ThePornDBScene、TOKYO-HOT、Wikipedia。（默认：JavBus,FANZA,JAV321,AVE,MGS,AVBASE,GFriends）",
+                "Enable field aggregation": "启用字段级聚合",
+                "Merge fields across providers: title, plot and cover can each come from a different source.": "跨源按字段取优：标题、简介、封面可分别来自不同源。",
+                "Field priority:": "字段优先级：",
+                "Per-field provider order, e.g. \"Title:JavBus,FANZA;Summary:FANZA,JavBus\". Fields: Title, Summary, CoverURL, Director, Actors, Genres, Series, Maker, Label, Score, Runtime, ReleaseDate, PreviewImages.": "按字段指定取优源，例如 \"Title:JavBus,FANZA;Summary:FANZA,JavBus\"。可用字段：Title、Summary、CoverURL、Director、Actors、Genres、Series、Maker、Label、Score、Runtime、ReleaseDate、PreviewImages。",
+                "JavDB cookie:": "JavDB Cookie：",
+                "JavDB anti-bot cookie, copy from your browser after logging into javdb.com. Leave blank to disable.": "JavDB 反爬 Cookie，登录 javdb.com 后从浏览器复制，留空则不带。",
                 "Template": "模板",
                 "Enable template": "启用模板",
                 "Predefined template variables can be found": "预置模板变量的说明见",

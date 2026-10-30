@@ -36,11 +36,47 @@ public static class TranslationHelper
 
         await LogResolvedModelAsync(cancellationToken, log).ConfigureAwait(false);
 
-        if (Configuration.TranslationMode.HasFlag(TranslationMode.Title) && !string.IsNullOrWhiteSpace(m.Title))
+        if (Configuration.TranslationMode.HasFlag(TranslationMode.Title) &&
+            !string.IsNullOrWhiteSpace(m.Title) && !ShouldSkipTranslation(m.Title, to))
             m.Title = await TranslateFieldSafeAsync(m.Title, to, cancellationToken, log).ConfigureAwait(false);
 
-        if (Configuration.TranslationMode.HasFlag(TranslationMode.Summary) && !string.IsNullOrWhiteSpace(m.Summary))
+        if (Configuration.TranslationMode.HasFlag(TranslationMode.Summary) &&
+            !string.IsNullOrWhiteSpace(m.Summary) && !ShouldSkipTranslation(m.Summary, to))
             m.Summary = await TranslateFieldSafeAsync(m.Summary, to, cancellationToken, log).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 目标语言为中文且文本已含中文字符时跳过翻译：内容已是中文
+    /// （如 iqqtv / airav 直接提供的中文标题与剧情），省一次机器翻译调用。
+    /// </summary>
+    private static bool ShouldSkipTranslation(string text, string to)
+    {
+        return IsChineseTarget(to) && ContainsChinese(text);
+    }
+
+    private static bool IsChineseTarget(string language)
+    {
+        if (string.IsNullOrWhiteSpace(language))
+            return false;
+        return language.Equals("zh", StringComparison.OrdinalIgnoreCase) ||
+               language.Equals("zh-CN", StringComparison.OrdinalIgnoreCase) ||
+               language.Equals("zh-TW", StringComparison.OrdinalIgnoreCase) ||
+               language.Equals("zh-Hans", StringComparison.OrdinalIgnoreCase) ||
+               language.Equals("zh-Hant", StringComparison.OrdinalIgnoreCase) ||
+               language.Equals("chs", StringComparison.OrdinalIgnoreCase) ||
+               language.Equals("cht", StringComparison.OrdinalIgnoreCase) ||
+               language.Equals("chi", StringComparison.OrdinalIgnoreCase) ||
+               language.Equals("zho", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool ContainsChinese(string text)
+    {
+        foreach (var c in text)
+        {
+            if (c >= '\u4e00' && c <= '\u9fff')
+                return true;
+        }
+        return false;
     }
 
     /// <summary>

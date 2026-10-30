@@ -49,16 +49,31 @@ public class MovieProvider : BaseProvider, IRemoteMetadataProvider<Movie, MovieI
         CancellationToken cancellationToken)
     {
         var pid = info.GetPid(Plugin.ProviderId);
-        if (string.IsNullOrWhiteSpace(pid.Id) || string.IsNullOrWhiteSpace(pid.Provider))
+        var hasPid = !string.IsNullOrWhiteSpace(pid.Id) && !string.IsNullOrWhiteSpace(pid.Provider);
+
+        Metadata.MovieInfo m;
+        if (Configuration.EnableFieldAggregation)
         {
-            // Search movies and pick the first result.
-            var firstResult = (await GetSearchResults(info, cancellationToken)).FirstOrDefault();
-            if (firstResult != null) pid = firstResult.GetPid(Plugin.ProviderId);
+            // 字段级聚合：跨源按字段取优（标题/简介/封面等分源）。
+            // 注意：Emby/Jellyfin 刷新（替换所有元数据）不会清除已保存的 provider id，
+            // 因此即使已有 pid 也走聚合，以支持「替换所有元数据」时重新搜索。
+            var keyword = SearchKeyword.Normalize(info.Name);
+            Logger.Info("Aggregate movie: {0}", keyword);
+            m = await ApiClient.GetAggregatedMovieAsync(keyword, Configuration.GetFieldPriority(),
+                cancellationToken);
         }
+        else
+        {
+            if (!hasPid)
+            {
+                // Search movies and pick the first result.
+                var firstResult = (await GetSearchResults(info, cancellationToken)).FirstOrDefault();
+                if (firstResult != null) pid = firstResult.GetPid(Plugin.ProviderId);
+            }
 
-        Logger.Info("Get movie info: {0}", pid.ToString());
-
-        var m = await ApiClient.GetMovieInfoAsync(pid.Provider, pid.Id, cancellationToken);
+            Logger.Info("Get movie info: {0}", pid.ToString());
+            m = await ApiClient.GetMovieInfoAsync(pid.Provider, pid.Id, cancellationToken);
+        }
 
         // Preserve original title.
         var originalTitle = m.Title;

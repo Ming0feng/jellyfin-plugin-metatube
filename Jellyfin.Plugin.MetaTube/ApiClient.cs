@@ -1,6 +1,7 @@
 using System.Collections.Specialized;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 using System.Web;
 using Jellyfin.Plugin.MetaTube.Metadata;
 #if __EMBY__
@@ -20,6 +21,7 @@ public static class ApiClient
     private const string BackdropImageApi = "/v1/images/backdrop";
     private const string TranslateApi = "/v1/translate";
     private const string ImageCacheApi = "/v1/images/cache";
+    private const string MovieAggregateApi = "/v1/movies/aggregate";
 
     private static string ComposeUrl(string path, NameValueCollection nv)
     {
@@ -183,6 +185,25 @@ public static class ApiClient
         return await GetDataAsync<List<ActorSearchResult>>(apiUrl, true, cancellationToken);
     }
 
+    /// <summary>
+    /// 跨源按字段聚合影片元数据：身份字段取最高优先级源，其余字段按
+    /// fieldPriority（未指定时按搜索优先级）逐字段取优。
+    /// fieldPriority 键为模型字段名（Title/Summary/CoverURL 等）。
+    /// </summary>
+    public static async Task<MovieInfo> GetAggregatedMovieAsync(string q,
+        Dictionary<string, List<string>> fieldPriority, CancellationToken cancellationToken)
+    {
+        var nv = new NameValueCollection
+        {
+            { "q", q }
+        };
+        if (fieldPriority?.Any() == true)
+            nv.Add("field_priority", JsonSerializer.Serialize(fieldPriority));
+
+        var apiUrl = ComposeUrl(MovieAggregateApi, nv);
+        return await GetDataAsync<MovieInfo>(apiUrl, true, cancellationToken);
+    }
+
     public static async Task<List<MovieSearchResult>> SearchMovieAsync(string q,
         CancellationToken cancellationToken)
     {
@@ -229,6 +250,11 @@ public static class ApiClient
         // Add General Headers.
         request.Headers.Add("Accept", "application/json");
         request.Headers.Add("User-Agent", DefaultUserAgent);
+
+        // Pass the JavDB anti-bot cookie to the backend so it can scrape
+        // javdb.com without being blocked.
+        if (!string.IsNullOrWhiteSpace(Plugin.Instance.Configuration.JavDbCookie))
+            request.Headers.TryAddWithoutValidation("X-JavDB-Cookie", Plugin.Instance.Configuration.JavDbCookie);
 
         // Set API Authorization Token.
         if (requireAuth && !string.IsNullOrWhiteSpace(Plugin.Instance.Configuration.Token))
