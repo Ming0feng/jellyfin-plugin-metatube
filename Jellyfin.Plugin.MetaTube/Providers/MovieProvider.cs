@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text;
 using System.Text.RegularExpressions;
 using Jellyfin.Plugin.MetaTube.Configuration;
@@ -34,6 +35,11 @@ public class MovieProvider : BaseProvider, IRemoteMetadataProvider<Movie, MovieI
 
     private static readonly string[] AvBaseSupportedProviderNames = { "DUGA", "FANZA", "Getchu", "MGS" };
 
+    // 字段聚合结果缓存：GetSearchResults 阶段聚合并缓存，GetMetadata 阶段复用，
+    // 避免重复全源搜索（每次刮削省掉一次 7~11s 的冗余搜索）。
+    private static readonly ConcurrentDictionary<string, Metadata.MovieInfo> _aggregationCache =
+        new(StringComparer.OrdinalIgnoreCase);
+
 #if __EMBY__
     public MetadataFeatures[] Features => new[]
         { MetadataFeatures.Collections, MetadataFeatures.Adult, MetadataFeatures.RequiredSetup };
@@ -58,9 +64,18 @@ public class MovieProvider : BaseProvider, IRemoteMetadataProvider<Movie, MovieI
             // 注意：Emby/Jellyfin 刷新（替换所有元数据）不会清除已保存的 provider id，
             // 因此即使已有 pid 也走聚合，以支持「替换所有元数据」时重新搜索。
             var keyword = SearchKeyword.Normalize(info.Name);
-            Logger.Info("Aggregate movie: {0}", keyword);
-            m = await ApiClient.GetAggregatedMovieAsync(keyword, Configuration.GetFieldPriority(),
-                cancellationToken);
+            if (_aggregationCache.TryRemove(keyword, out var aggregated))
+            {
+                // 复用 GetSearchResults 阶段已完成的聚合结果，避免重复聚合。
+                Logger.Info("Reuse aggregated movie: {0}", keyword);
+                m = aggregated;
+            }
+            else
+            {
+                Logger.Info("Aggregate movie: {0}", keyword);
+                m = await ApiClient.GetAggregatedMovieAsync(keyword, Configuration.GetFieldPriority(),
+                    cancellationToken);
+            }
         }
         else
         {
@@ -223,8 +238,21 @@ public class MovieProvider : BaseProvider, IRemoteMetadataProvider<Movie, MovieI
             // Search movie by name, with uncensored/subtitle suffixes removed
             // (e.g. STARS-979-LTX -> STARS-979), otherwise no provider matches.
             var keyword = SearchKeyword.Normalize(info.Name);
-            Logger.Info("Search for movie: {0}", keyword);
-            searchResults.AddRange(await ApiClient.SearchMovieAsync(keyword, pid.Provider, cancellationToken));
+            if (Configuration.EnableFieldAggregation)
+            {
+                // 字段聚合模式下直接聚合，并缓存供 GetMetadata 复用，避免重复全源搜索。
+                Logger.Info("Aggregate movie (search): {0}", keyword);
+                var aggregated = await ApiClient.GetAggregatedMovieAsync(keyword,
+                    Configuration.GetFieldPriority(), cancellationToken);
+                _aggregationCache[keyword] = aggregated;
+                searchResults.Add(aggregated);
+            }
+            else
+            {
+                Logger.Info("Search for movie: {0}", keyword);
+                searchResults.AddRange(await ApiClient.SearchMovieAsync(keyword, pid.Provider,
+                    cancellationToken));
+            }
         }
         else
         {
