@@ -100,7 +100,9 @@ Welcome and feel free to ask any questions at [Discussions](https://github.com/m
 
 ### 无码 / 破解检出
 
-按文件名分词匹配关键字 `U`、`UC`、`AI`、`uncensored`、`无码`、`破解`，例如 `SONE-263-U`、`ABC-123-UC`、`XYZ-AI`，关键字列表可自定义。
+按文件名分词匹配关键字 `U`、`UC`、`AI`、`uncensored`、`无码`、`破解`、`LTX`、`wm`、`restored`、`jasna`，例如 `SONE-263-U`、`ABC-123-UC`、`SSNI-830_restored_LTX_wm`，关键字列表可自定义。
+
+番号提取由插件在客户端完成：刮削时优先从真实文件路径用番号正则抽出纯番号（`259LUXU-1795_jasna-0.11.3_ltx_wm` → `259LUXU-1795`、`SSNI-830_restored_LTX_wm` → `SSNI-830`），只把番号发给服务端。抽不到标准番号的冷门格式（FC2、maker 前缀、无横线番号等）不做猜测，仅去掉破解/字幕后缀后原样交给服务端自己的清洗逻辑兜底。内置标记清单不依赖已保存的旧配置。
 
 ### 翻译链路改造
 

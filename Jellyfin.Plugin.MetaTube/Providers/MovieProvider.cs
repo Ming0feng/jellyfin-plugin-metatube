@@ -63,7 +63,7 @@ public class MovieProvider : BaseProvider, IRemoteMetadataProvider<Movie, MovieI
             // 字段级聚合：跨源按字段取优（标题/简介/封面等分源）。
             // 注意：Emby/Jellyfin 刷新（替换所有元数据）不会清除已保存的 provider id，
             // 因此即使已有 pid 也走聚合，以支持「替换所有元数据」时重新搜索。
-            var keyword = SearchKeyword.Normalize(info.Name);
+            var keyword = SearchKeyword.Normalize(info.Name, info.Path);
             if (_aggregationCache.TryRemove(keyword, out var aggregated))
             {
                 // 复用 GetSearchResults 阶段已完成的聚合结果，避免重复聚合。
@@ -235,9 +235,9 @@ public class MovieProvider : BaseProvider, IRemoteMetadataProvider<Movie, MovieI
         var searchResults = new List<MovieSearchResult>();
         if (string.IsNullOrWhiteSpace(pid.Id) || string.IsNullOrWhiteSpace(pid.Provider))
         {
-            // Search movie by name, with uncensored/subtitle suffixes removed
-            // (e.g. STARS-979-LTX -> STARS-979), otherwise no provider matches.
-            var keyword = SearchKeyword.Normalize(info.Name);
+            // Extract the movie number from the real file path first, otherwise
+            // no provider matches (e.g. 259LUXU-1795_jasna-0.11.3_ltx_wm).
+            var keyword = SearchKeyword.Normalize(info.Name, info.Path);
             if (Configuration.EnableFieldAggregation)
             {
                 // 字段聚合模式下直接聚合，并缓存供 GetMetadata 复用，避免重复全源搜索。

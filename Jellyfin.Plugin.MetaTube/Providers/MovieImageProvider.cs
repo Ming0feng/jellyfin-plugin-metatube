@@ -187,21 +187,20 @@ public class MovieImageProvider : BaseProvider, IRemoteImageProvider, IHasOrder
     /// </summary>
     private static string GetSearchKeyword(BaseItem item, ProviderId pid)
     {
-        if (!string.IsNullOrWhiteSpace(pid.Id) && MovieNumberRegex.IsMatch(pid.Id))
-            return pid.Id;
+        // 番号正则统一复用 SearchKeyword，避免主搜索与图片回退两套规则。
+        if (!string.IsNullOrWhiteSpace(pid.Id) &&
+            SearchKeyword.MovieNumberRegex.Match(pid.Id) is { Success: true } idMatch)
+            return idMatch.Groups[1].Value;
 
         if (!string.IsNullOrWhiteSpace(item.Name))
         {
-            var match = MovieNumberRegex.Match(item.Name);
+            var match = SearchKeyword.MovieNumberRegex.Match(item.Name);
             if (match.Success)
                 return match.Groups[1].Value;
         }
 
         return pid.Id;
     }
-
-    private static readonly Regex MovieNumberRegex =
-        new(@"(?i)([a-z]{2,}[-_]\d{2,}|\d{4,6}[-_]\d{2,3})", RegexOptions.Compiled);
 
     /// <summary>
     /// 仅当条目确实带中文字幕时才让图片地址带上角标，

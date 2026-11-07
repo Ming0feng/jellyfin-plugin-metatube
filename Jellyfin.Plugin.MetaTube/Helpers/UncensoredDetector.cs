@@ -3,11 +3,16 @@ using System.Text.RegularExpressions;
 namespace Jellyfin.Plugin.MetaTube.Helpers;
 
 /// <summary>
-/// 无码/破解检出：按文件名后缀关键字判断（-U、-UC、-AI、无码、破解等）。
+/// 无码/破解检出：按文件名分词匹配标记（-U、-UC、-AI、_restored、_wm 等）。
 /// </summary>
 public static class UncensoredDetector
 {
-    private const string DefaultKeywords = "U,UC,AI,uncensored,无码,破解,LTX";
+    /// <summary>
+    /// 内置默认清单，始终参与检出：用户配置里保存的通常是旧默认值，
+    /// 只依赖配置会让新出现的 AI 修复/破解标记漏判。
+    /// </summary>
+    private const string DefaultKeywords =
+        "U,UC,AI,uncensored,无码,破解,LTX,wm,restored,jasna,cracked,remastered,decensored,leaked,nomosaic";
 
     private static readonly Regex Separator = new(@"[-_\s.@\[\]()（）]+", RegexOptions.Compiled);
 
@@ -29,7 +34,7 @@ public static class UncensoredDetector
         {
             if (keyword.All(c => c < 128))
             {
-                // 分隔符分词匹配：SONE-263-U、ABC-123-UC、XYZ-AI
+                // 分隔符分词匹配：SONE-263-U、ABC-123-UC、SSNI-830_restored_LTX_wm
                 if (tokens.Contains(keyword, StringComparer.OrdinalIgnoreCase))
                     return true;
 
@@ -49,9 +54,9 @@ public static class UncensoredDetector
 
     private static string[] GetKeywords()
     {
-        var raw = Plugin.Instance?.Configuration?.UncensoredKeywords;
-        if (string.IsNullOrWhiteSpace(raw))
-            raw = DefaultKeywords;
+        var raw = string.Join(',',
+            DefaultKeywords,
+            Plugin.Instance?.Configuration?.UncensoredKeywords ?? string.Empty);
 
         return raw.Split(new[] { ',', '，' }, StringSplitOptions.RemoveEmptyEntries)
             .Select(keyword => keyword.Trim())
