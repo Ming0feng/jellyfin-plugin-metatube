@@ -71,12 +71,19 @@ public static class TranslationHelper
 
     private static bool ContainsChinese(string text)
     {
+        var hasHan = false;
         foreach (var c in text)
         {
+            // Kana (hiragana/katakana) implies Japanese. Japanese sentences
+            // share the CJK ideograph range with Chinese, so treat any kana
+            // as "not Chinese" to keep Japanese titles from being skipped
+            // as already-Chinese.
+            if ((c >= '\u3040' && c <= '\u309f') || (c >= '\u30a0' && c <= '\u30ff'))
+                return false;
             if (c >= '\u4e00' && c <= '\u9fff')
-                return true;
+                hasHan = true;
         }
-        return false;
+        return hasHan;
     }
 
     /// <summary>
