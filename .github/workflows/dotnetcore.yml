@@ -76,7 +76,6 @@ jobs:
         with:
           tag_name: ${{ steps.shell.outputs.tag }}
           name: ${{ steps.shell.outputs.tag }}
-          body: _Auto Released by Actions_
           generate_release_notes: true
           draft: false
           files: |
