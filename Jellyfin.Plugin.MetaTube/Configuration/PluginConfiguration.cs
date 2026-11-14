@@ -375,4 +375,16 @@ public class PluginConfiguration : BasePluginConfiguration
     }
 
     private SubstitutionTable _genreSubstitutionTable;
+
+#if __EMBY__
+    [DisplayName("自动合并多版本")]
+    [Description("刮削成功后，自动将番号相同的电影合并为多版本。仅对启用 MetaTube 的媒体库生效。")]
+#endif
+    public bool EnableAutoMerge { get; set; } = false;
+
+#if __EMBY__
+    [DisplayName("合并偏好")]
+    [Description("同目录合并 / 各媒体库合并 / 跨媒体库合并。")]
+#endif
+    public MergeScope MergePreference { get; set; } = MergeScope.LibraryScope;
 }

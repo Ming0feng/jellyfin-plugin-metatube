@@ -5,9 +5,11 @@ using Jellyfin.Plugin.MetaTube.Configuration;
 using Jellyfin.Plugin.MetaTube.Extensions;
 using Jellyfin.Plugin.MetaTube.Helpers;
 using Jellyfin.Plugin.MetaTube.Metadata;
+using Jellyfin.Plugin.MetaTube.MultiVersion;
 using Jellyfin.Plugin.MetaTube.Translation;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
+using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Providers;
 using MediaBrowser.Model.Providers;
 using MovieInfo = MediaBrowser.Controller.Providers.MovieInfo;
@@ -40,16 +42,22 @@ public class MovieProvider : BaseProvider, IRemoteMetadataProvider<Movie, MovieI
     private static readonly ConcurrentDictionary<string, Metadata.MovieInfo> _aggregationCache =
         new(StringComparer.OrdinalIgnoreCase);
 
+    private readonly MovieMerger _movieMerger;
+
 #if __EMBY__
     public MetadataFeatures[] Features => new[]
         { MetadataFeatures.Collections, MetadataFeatures.Adult, MetadataFeatures.RequiredSetup };
 
-    public MovieProvider(ILogManager logManager) : base(logManager.CreateLogger<MovieProvider>())
-#else
-    public MovieProvider(ILogger<MovieProvider> logger) : base(logger)
-#endif
+    public MovieProvider(ILogManager logManager, ILibraryManager libraryManager) : base(logManager.CreateLogger<MovieProvider>())
     {
+        _movieMerger = new MovieMerger(logManager, libraryManager);
     }
+#else
+    public MovieProvider(ILogger<MovieProvider> logger, ILibraryManager libraryManager) : base(logger)
+    {
+        _movieMerger = new MovieMerger(logger, libraryManager);
+    }
+#endif
 
     public async Task<MetadataResult<Movie>> GetMetadata(MovieInfo info,
         CancellationToken cancellationToken)
@@ -223,6 +231,21 @@ public class MovieProvider : BaseProvider, IRemoteMetadataProvider<Movie, MovieI
             await SetActorImageUrl(actor, cancellationToken);
             result.AddPerson(actor);
         }
+
+        // 刮削成功后异步触发多版本合并（按文件名番号，仅对启用 MetaTube 的库生效）。
+        // 合并时机由 MergeByPath 内部「合并→验证→重试」自适应处理，避免赶在元数据保存前。
+        if (Configuration.EnableAutoMerge)
+            _ = Task.Run(() =>
+            {
+                try
+                {
+                    _movieMerger.MergeByPath(info.Path);
+                }
+                catch (Exception e)
+                {
+                    Logger.Warn("Auto-merge failed for {0}: {1}", info.Path, e.Message);
+                }
+            });
 
         return result;
     }

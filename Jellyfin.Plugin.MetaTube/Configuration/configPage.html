@@ -180,6 +180,27 @@
                 </div>
 
                 <div class="verticalSection">
+                    <h2 class="sectionTitle">Multi-Version</h2>
+
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="chkEnableAutoMerge" is="emby-checkbox" name="chkEnableAutoMerge" type="checkbox"/>
+                            <span>Auto merge multi-versions</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">After a movie is scraped, automatically merge movies with the same number into one multi-version item (libraries with MetaTube enabled only).</div>
+                    </div>
+
+                    <div class="selectContainer">
+                        <label class="selectLabel selectLabelText" for="selectMergePreference">Merge preference:</label>
+                        <select class="emby-select-withcolor emby-select" id="selectMergePreference" is="emby-select" name="selectMergePreference">
+                            <option value="SameFolder">Same folder</option>
+                            <option value="LibraryScope">Per library</option>
+                            <option value="GlobalScope">Across libraries</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="verticalSection">
                     <h2 class="sectionTitle">Template</h2>
 
                     <div class="checkboxContainer checkboxContainer-withDescription">
@@ -434,6 +455,8 @@
                 $('#txtActorRawSubstitutionTable', page).val(config.ActorRawSubstitutionTable).change();
                 page.querySelector('#chkEnableGenreSubstitution').checked = config.EnableGenreSubstitution;
                 $('#txtGenreRawSubstitutionTable', page).val(config.GenreRawSubstitutionTable).change();
+                page.querySelector('#chkEnableAutoMerge').checked = config.EnableAutoMerge;
+                $('#selectMergePreference', page).val(config.MergePreference).change();
                 Dashboard.hideLoadingMsg();
             });
         });
@@ -483,6 +506,8 @@
                 config.ActorRawSubstitutionTable = $('#txtActorRawSubstitutionTable', form).val();
                 config.EnableGenreSubstitution = $('#chkEnableGenreSubstitution', form).prop('checked');
                 config.GenreRawSubstitutionTable = $('#txtGenreRawSubstitutionTable', form).val();
+                config.EnableAutoMerge = $('#chkEnableAutoMerge', form).prop('checked');
+                config.MergePreference = $('#selectMergePreference', form).val();
                 ApiClient.updatePluginConfiguration(MetaTubePluginConfig.pluginUniqueId, config).then(Dashboard.processPluginConfigurationUpdateResult);
             });
             // Disable default form submission
